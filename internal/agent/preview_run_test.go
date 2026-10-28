@@ -400,6 +400,15 @@ func TestPreviewEmptyEntriesNotNil(t *testing.T) {
 // The .gitignore here is written AFTER the file is committed, because git
 // applies ignore rules only to untracked paths: the file stays tracked, git
 // diff still emits it, and OCR is the only layer that drops it.
+//
+// Commit mode, not workspace mode, because that is where #1804 was reported
+// ("delegate preview returns zero files for changed Java commit and range").
+// The distinction matters: #1837 argues workspace mode should not apply
+// .gitignore at all, since git never ignores a tracked path and
+// untrackedFilesList already drops ignored untracked ones. That is about which
+// files workspace mode reviews; this test is about a file that is excluded
+// being reported rather than silently dropped, which commit mode states
+// without colliding with it.
 func TestPreviewReportsGitignoredTrackedFile(t *testing.T) {
 	dir := initPreviewRepo(t)
 
@@ -424,8 +433,10 @@ func TestPreviewReportsGitignoredTrackedFile(t *testing.T) {
 	if err := os.WriteFile(path, []byte("package main\n\nconst Gen = 2\n"), 0o644); err != nil {
 		t.Fatalf("modify generated file: %v", err)
 	}
+	run("add", "-u")
+	run("commit", "-m", "edit the tracked generated file")
 
-	preview, err := Preview(context.Background(), Args{RepoDir: dir})
+	preview, err := Preview(context.Background(), Args{RepoDir: dir, Commit: "HEAD"})
 	if err != nil {
 		t.Fatalf("Preview error: %v", err)
 	}
