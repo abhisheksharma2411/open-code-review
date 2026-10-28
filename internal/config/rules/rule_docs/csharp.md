@@ -7,9 +7,9 @@
 - `as` followed by use without a null check, where a failed cast is reachable for the input the method accepts
 
 #### Resource Lifetime and Disposal
-- `IDisposable` or `IAsyncDisposable` values -- streams, `DbConnection`, `SemaphoreSlim`, `CancellationTokenRegistration`, timers -- acquired without `using`, `await using`, or a `try/finally` that covers exceptions and early returns
+- An `IDisposable` or `IAsyncDisposable` the reviewed code owns -- streams, `DbConnection`, `SemaphoreSlim`, `CancellationTokenRegistration`, timers -- left without `using`, `await using`, or a `try/finally` that covers exceptions and early returns; a dependency owned elsewhere, such as a scoped `DbContext` the container injected and disposes, is not this code's to release
 - A disposable stored in a field or captured by a closure that outlives the scope which disposed it, or disposed while an in-flight asynchronous operation still consumes it
-- A type holding disposable state that does not itself implement `IDisposable`, leaving callers no way to release it
+- A type that owns disposable state and implements neither `IDisposable` nor `IAsyncDisposable`, leaving callers no way to release it; either interface alone is sufficient, and a type that only passes ownership on to its caller needs neither
 - `HttpClient` constructed per request rather than reused or obtained from `IHttpClientFactory`, where socket exhaustion or stale DNS is a realistic consequence; a single short-lived client in a console entry point is not a finding
 
 #### Async, Tasks, and Cancellation
@@ -27,7 +27,7 @@
 
 #### Equality, Structs, and Value Semantics
 - `Equals` overridden without `GetHashCode` (or the reverse), or either implemented over mutable state while instances are used as dictionary keys or set members
-- A mutable struct that callers can copy and mutate independently, or a struct exposed through a readonly field or `in` parameter where defensive copies silently discard writes
+- A mutable struct whose copying demonstrably loses writes -- mutated through a `readonly` field, an `in` parameter, or a collection indexer that hands back a copy, so the update lands on a temporary and is discarded; copying and independently mutating a value type is ordinary C# and is not on its own a finding
 - Reference equality used where value equality is intended, or `==` on types whose operator is not overloaded as the comparison assumes
 - `DateTime` used where an offset or time zone matters, or comparisons mixing `Utc`, `Local`, and `Unspecified` kinds
 
